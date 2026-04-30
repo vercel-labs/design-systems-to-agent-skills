@@ -1,0 +1,18 @@
+# Pipeline working directories (created during execution)
+context/
+skills/
+!example/context/
+!example/skills/
+
+# OS
+.DS_Store
+
+# Editor
+.obsidian/
+*.swp
+*~
+
+# Agent runtime configs (user-specific)
+.claude/
+.opencode/
+.cursor/
