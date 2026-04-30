@@ -110,8 +110,14 @@ PROGRESS_FILE="context/$DS_NAME/stage4-progress.md"
 # BUILD AGENT COMMAND
 # =============================================================================
 
-# The prompt content — tells the agent to run Stage 4 for the specific DS
-STAGE4_PROMPT="Run Stage 4 of the design system skill generation pipeline for $DS_NAME. Read the progress file and PRD from disk, execute the next batch, commit, then exit."
+# The prompt content — tells the agent to run Stage 4 for the specific DS.
+# For Claude Code with slash commands installed, use the command directly.
+# For other agents, use the descriptive prompt as fallback.
+if [[ "$AGENT_CMD" == claude* ]] && [[ -f ".claude/commands/ds/generate.md" ]]; then
+  STAGE4_PROMPT="/ds:generate $DS_NAME"
+else
+  STAGE4_PROMPT="Run Stage 4 of the design system skill generation pipeline for $DS_NAME. Read the progress file and PRD from disk, execute the next batch, commit, then exit."
+fi
 
 # If --unattended, append agent-specific flags
 AGENT_EXTRA_ARGS=""
@@ -127,6 +133,14 @@ if [[ -n "$UNATTENDED" ]]; then
       ;;
   esac
 fi
+
+# Claude-specific: ensure enough turns for the full batch cycle
+# (dispatch subagents → process results → update progress → commit)
+case "$AGENT_CMD" in
+  claude*)
+    AGENT_EXTRA_ARGS="$AGENT_EXTRA_ARGS --max-turns 15"
+    ;;
+esac
 
 # =============================================================================
 # PREFLIGHT CHECKS
