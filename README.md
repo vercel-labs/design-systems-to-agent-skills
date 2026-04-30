@@ -78,6 +78,28 @@ Stage 5: Run verify-skills.sh (no agent session needed)
 
 Each stage reads its inputs from disk, so you can start a fresh agent session between stages.
 
+### Automating Stage 4 with the loop script
+
+Stage 4 generates components in batches of 8, with each batch requiring a fresh agent session to avoid context window accumulation. For design systems with many components, the manual cycle (clear session → re-run generate → wait → repeat) gets tedious.
+
+The `ds-generate-loop.sh` script automates this by spawning a fresh `claude -p` process per batch:
+
+```bash
+./scripts/ds-generate-loop.sh --ds myds --max 25 --skip-permissions
+```
+
+Each iteration: spawn fresh Claude → Claude reads progress file → runs one batch → commits → exits → script validates progress → loops.
+
+The script requires two flags on the Claude invocation:
+- **DS name in the prompt** (`/ds:generate $DS_NAME`) — without it, Claude may auto-detect the wrong design system from `context/`
+- **`--max-turns 15`** — ensures Claude has enough turns to complete the full batch cycle (dispatch subagents → process results → update progress → commit). Without this, Claude exits mid-batch after dispatching subagents but before the post-batch bookkeeping.
+
+Options:
+- `--ds <name>` — design system name (auto-detected from `context/` if omitted)
+- `--max <N>` — safety limit on iterations (default: 20)
+- `--skip-permissions` — adds `--dangerously-skip-permissions` for fully unattended runs
+- `--dry-run` — shows what would run without executing
+
 ## Output
 
 The pipeline generates a structured skill file hierarchy:
