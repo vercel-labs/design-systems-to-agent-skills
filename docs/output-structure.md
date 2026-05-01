@@ -33,6 +33,22 @@ skills/{ds}/
 
 **SKILL.md** is the entry point. An agent reads this first and uses its routing matrix to navigate to the right reference file for any task.
 
+### SKILL.md Frontmatter
+
+SKILL.md must begin with YAML frontmatter for skill system registration. Most agent runtimes that support skill discovery (Claude Code, OpenCode) use frontmatter to index skills:
+
+```yaml
+---
+name: {ds}
+description: >
+  {DS full name} component and asset reference. Use this skill when building UI
+  with {package} — component props, import paths, icons, design tokens,
+  and anti-patterns. All data verified from source code.
+---
+```
+
+The `name` field is the DS short name (e.g., `geistcn`, `andes`). The `description` is a concise summary that helps the agent decide when to invoke the skill. Stage 4 generates this from the decisions file — no extra user input needed.
+
 ## Versioned Namespace
 
 All DS-specific content lives under a versioned path: `{ds}/v{N}/`. This enables:

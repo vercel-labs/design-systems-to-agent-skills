@@ -134,7 +134,21 @@ Write this to `context/{ds}/stage4-progress.md`.
 
 Generate SKILL.md, index.md, components.md, and cross-cutting files directly (no sub-agents needed — these are orchestrator-level files).
 
-**SKILL.md content:** Follow the PRD's content structure. Include:
+**SKILL.md content:** Follow the PRD's content structure. The file MUST begin with YAML frontmatter for skill system registration:
+
+```yaml
+---
+name: {ds}
+description: >
+  {DS full name} component and asset reference. Use this skill when building UI
+  with {package} — component props, import paths, icons, design tokens,
+  and anti-patterns. All data verified from source code.
+---
+```
+
+The `name` field is the DS short name from decisions. The `description` field should be a concise summary derived from decisions (package name, what the skill covers, key asset counts if known). Keep the description under 3 lines.
+
+After the frontmatter, include:
 - Design system description
 - Setup/installation instructions
 - Routing matrix mapping user intent → reference files (using versioned paths)
