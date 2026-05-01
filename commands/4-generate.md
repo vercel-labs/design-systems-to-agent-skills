@@ -210,6 +210,15 @@ For each component in the batch, dispatch a sub-agent using the PRD's sub-agent 
 - `{CONTENTS_OF_VERIFIED_FACTS_FILE}` — read `02-verified-facts/components/{name}.md` and include its full contents
 - `{IMPORT_LINE_FROM_IMPORTS_MD}` — find this component's import in `imports.md`
 
+If the verified facts file contains a `## Behavioral Notes` section with entries (not just "None observed."), include those notes in the sub-agent prompt:
+
+"The following behavioral observations were extracted from source code. Turn each into a WRONG/CORRECT anti-pattern pair in the Anti-patterns section.
+
+Behavioral Notes:
+{CONTENTS_OF_BEHAVIORAL_NOTES_SECTION}"
+
+This is backward-compatible: components without a `## Behavioral Notes` section continue to work unchanged.
+
 Each sub-agent writes directly to the versioned path.
 
 **5b. Wait for all sub-agents to complete**

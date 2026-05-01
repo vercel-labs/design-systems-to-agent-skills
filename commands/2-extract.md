@@ -126,6 +126,15 @@ EXTRACT THE FOLLOWING (from source code ONLY):
 
 10. **Data attributes**: Scan the component's rendered output (JSX return statements) for any `data-*` attributes set on elements.
 
+11. **Behavioral notes**: Read the component implementation (not just types). Look for:
+    - Default values with UX implications (auto-casing, auto-focus, auto-scroll)
+    - Internal transforms applied to props (title-casing labels, formatting numbers)
+    - Context consumption (what contexts does the component read? what changes behavior?)
+    - Conditional rendering (when does the component show/hide sub-elements?)
+    - Event handler remapping (e.g., onClick → PressEvent instead of MouseEvent)
+    Only note behaviors that have UX implications an agent consumer should know about.
+    If no notable behavioral patterns, write "None observed."
+
 WRITE your findings to: context/{ds}/02-verified-facts/components/{component_name}.md
 
 Use this format:
@@ -199,6 +208,9 @@ import '{style_import_path}'
 | Attribute | Element | Dynamic Values |
 |---|---|---|
 | `data-ds-component` | root element | — |
+
+## Behavioral Notes
+- {behavior}: {description and implication}
 
 ## Uncertainties
 - [List anything that couldn't be verified from source]

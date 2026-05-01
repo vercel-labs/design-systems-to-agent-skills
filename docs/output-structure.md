@@ -140,6 +140,16 @@ Each component's `api.md` follows a consistent structure:
 ## Data Attributes
 (testing attributes, if extracted)
 
+## Behavioral Notes
+(optional — only present when Stage 2 extracted notable behaviors)
+Defaults with UX implications, internal transforms, context consumption patterns,
+and other behaviors an agent should know about. Each note describes the behavior
+and its implication for correct usage.
+
+When present, Stage 4 turns these into WRONG/CORRECT anti-pattern pairs in the
+Anti-patterns section below. The raw notes are not included in the final api.md —
+they inform the anti-patterns.
+
 ## Anti-patterns
 (common mistakes with WRONG/CORRECT code blocks)
 

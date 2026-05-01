@@ -55,7 +55,7 @@ Stage 1 is lightweight. It can share a session with Stages 2-3 if the design sys
 
 ### What it does
 
-Dispatches sub-agents in batches of 8 to read component source code and extract verified facts: TypeScript interfaces, props with defaults, import paths, compound component structures, design tokens, and named exports.
+Dispatches sub-agents in batches of 8 to read component source code and extract verified facts: TypeScript interfaces, props with defaults, import paths, compound component structures, design tokens, named exports, and behavioral notes (defaults with UX implications, internal transforms, context consumption).
 
 ### What it reads
 

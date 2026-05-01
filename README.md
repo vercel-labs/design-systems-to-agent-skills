@@ -102,6 +102,20 @@ Options:
 - `--unattended` — run without permission prompts (maps to agent-specific flags)
 - `--dry-run` — shows what would run without executing; also runs `update_progress_from_disk()` to show what it would detect
 
+## Porting Skills to a Target Codebase
+
+After the pipeline generates and verifies a skill, use the port command to deploy it to a consuming codebase. The port command runs in the **target repo** and adapts the skill copy to match target conventions (frontmatter format, skill directory location, settings registration).
+
+```
+# Claude Code — run from the target repo
+/ds:port /path/to/ds-skills-pipeline/skills/geistcn
+
+# Generic agent
+your-agent --system-prompt "$(cat /path/to/ds-skills-pipeline/commands/port.md)" "/path/to/skills/geistcn"
+```
+
+The port command discovers target conventions automatically, reports any import path differences between source and target, and never modifies the source skill files. See [`commands/port.md`](commands/port.md) for the full process.
+
 ## Output
 
 The pipeline generates a structured skill file hierarchy:
