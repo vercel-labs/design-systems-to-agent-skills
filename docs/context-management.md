@@ -27,8 +27,7 @@ Externalize state to disk. Every batch updates the progress file. Fresh sessions
 
 The progress file (`context/{ds}/stage4-progress.md`) tracks:
 - Overall status (In Progress / Complete)
-- Which run is active (for multi-run design systems)
-- Checkbox list of all files, grouped by wave and batch
+- Flat ordered checkbox list of all files, grouped by wave and category
 - Issues encountered
 
 After every batch:
@@ -38,13 +37,19 @@ After every batch:
 
 The next session reads the progress file and skips completed work automatically.
 
-## 50-component session ceiling
+## Multi-file PRD for context efficiency
 
-Design systems with more than 50 in-scope components should be split into multiple Stage 4 runs. This split is planned upfront during Stage 1 (interview) and encoded in Stage 3 (PRD).
+The PRD is a directory of 5 files (`context/{ds}/03-closed-prd/`) rather than a single monolithic document. Stage 4 loads only the files it needs per phase:
 
-Stages 1-3 (interview, extraction, PRD) still cover ALL components — only Stage 4 generation is split.
+| Phase | PRD files loaded |
+|---|---|
+| Wave 1 (infrastructure) | `01-file-manifest.md` + `02-content-structure.md` + `03-wave-plan.md` |
+| Wave 2 (guides) | `02-content-structure.md` + `03-wave-plan.md` |
+| Wave 3+ (component batches) | `05-subagent-template.md` + `03-wave-plan.md` |
 
-Recommended grouping: by category (all form components in one run, all layout/navigation in another). This improves context coherence within each run.
+Component batches — the heaviest phase — load only the subagent template and wave plan. The full manifest, content structure, and success criteria are not needed once infrastructure and guides are complete.
+
+This replaces the old "50-component session ceiling" approach where design systems with 50+ components required multiple runs planned upfront. The combination of multi-file PRDs (reducing per-session context) and the loop script (fresh session per batch) handles any number of components without run splitting.
 
 ## Verification is code, not agents
 
@@ -71,6 +76,7 @@ Pattern:
 | Stage 2 (Extract) | ~25% | Batch dispatching, file existence polling, committing |
 | Stage 3 (PRD) | ~10% | Summary file reads, PRD writing |
 | Stage 4 (Generate) | ~12% per batch | PRD loading, verified facts per batch, sub-agent dispatching |
-| Stage 5 (Verify) | 0% | Shell script, no agent |
+| Stage 5 (Assets) | ~5% | Script-assisted extraction, table formatting |
+| Stage 6 (Verify) | 0% | Shell script, no agent |
 
 These are approximate. Actual usage depends on design system size, component complexity, and agent runtime.

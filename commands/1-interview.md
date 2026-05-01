@@ -10,14 +10,15 @@
 
 Run Stage 1 of the design system skill generation pipeline: interactive discovery.
 
-You are the entry point of a 4-stage pipeline that transforms design systems into agent-consumable skills. Your job is to interview the user about every scoping decision, then persist those decisions to disk so subsequent stages can run from a fresh session if needed.
+You are the entry point of a 6-stage pipeline that transforms design systems into agent-consumable skills. Your job is to interview the user about every scoping decision, then persist those decisions to disk so subsequent stages can run from a fresh session if needed.
 
 The pipeline stages:
 1. **Interview** — YOU ARE HERE. Scope decisions through conversation.
 2. **Extract** — Extract verified facts from source code.
 3. **PRD** — Generate a closed PRD with zero open questions.
 4. **Generate** — Parallel skill file generation (fresh session recommended).
-5. **Verify** — Programmatic verification (no agent session needed).
+5. **Assets** — Exhaustive asset catalog generation (icons, logos, etc.).
+6. **Verify** — Programmatic verification (no agent session needed).
 
 ## Process
 
@@ -111,35 +112,6 @@ List ALL components found in the source (from available-components.md or by scan
 - Any to exclude? Why?
 - Total count confirmation.
 
-**Q3b: Run plan (if >50 components or high complexity)**
-
-After confirming the in-scope component list, assess whether the design system exceeds the single-run ceiling:
-
-- **>50 in-scope components** — always recommend splitting
-- **40-50 components with high complexity signals** (many compound components, responsive patterns, 30+ props average) — recommend splitting
-- **<40 components** — single run, skip this question
-
-If splitting is needed:
-
-> This design system has N in-scope components. A single Stage 4 generation run can reliably handle ~40-50 components before context accumulation degrades output quality. I recommend splitting into M runs:
-> - **Run 1:** {components 1-X} ({rationale — e.g., "all form + feedback components"})
-> - **Run 2:** {components X+1-Y} ({rationale})
->
-> Stages 1-3 (interview, extraction, PRD) still cover ALL N components — only Stage 4 generation is split. Each run gets a fresh session with full context budget.
->
-> Does this split make sense? Would you prefer different groupings?
-
-Group runs by category when possible (all form components in one run, all layout/navigation in another). This improves context coherence within each run.
-
-Record the run plan in the **Scope** section of `01-decisions.md`:
-```markdown
-## Run Plan
-- **Run 1 (N components):** {list}
-- **Run 2 (M components):** {list}
-```
-
-If the user prefers a single run despite the recommendation, note it in decisions as an acknowledged risk.
-
 **Q4: Component categories**
 Propose categories based on the component names (common groupings: Form, Layout, Feedback, Navigation, Data Display, Overlay, Typography, Media). Ask the user to confirm or adjust. Assign each in-scope component to a category.
 
@@ -209,10 +181,44 @@ Propose based on the design system's characteristics. Common guides:
 
 Ask the user to confirm which ones.
 
-**Q9b: Domain-specific guides**
-After proposing standard guides, probe for domain-specific content:
+**Q9b: Asset systems inventory**
 
-- **Asset systems:** Does the DS have an icon system, illustration library, or other asset system that needs its own guide?
+Probe specifically for asset systems that need exhaustive catalogs (Stage 5). These are different from component docs — they're lookup tables of every name + import path.
+
+- **Icon system:** Does the DS have an icon system? If so:
+  - Package name (same as components, or a separate `{ds}-assets` package?)
+  - Source path on disk (may differ from the component source)
+  - Where are icon names defined? (e.g., `src/__generated__/icon-names.ts`, barrel file, or directory scan)
+  - Approximate count
+- **Logo system:** Does the DS ship logos? Same questions as above.
+- **Illustration / pixel art / other assets:** Any other named-asset systems?
+- **Multi-package:** Are assets in the same npm package as components, or a separate package? If separate, capture both package names and source paths.
+
+Record in decisions under **Asset Systems**:
+
+```markdown
+## Asset Systems
+
+### Icons
+- **Package:** {package name}
+- **Source:** {path on disk}
+- **Name source:** {path to names array or barrel file}
+- **Count:** ~{N}
+
+### Logos
+- **Package:** {package name}
+- **Source:** {path on disk}
+- **Name source:** {path to names array or barrel file}
+- **Count:** ~{N}
+
+(Repeat per asset type)
+```
+
+If the DS has no asset systems, record `## Asset Systems: None` so Stage 5 knows to skip.
+
+**Q9c: Domain-specific guides**
+After asset systems, probe for other domain-specific content:
+
 - **Design spec workflow:** Does the team use a design tool → code pipeline? If so, should the skill include a guide documenting how to translate design specs into DS component usage?
 - **Organization-specific patterns:** Are there any internal guidelines, conventions, or patterns beyond the DS source code that the skill should reference?
 

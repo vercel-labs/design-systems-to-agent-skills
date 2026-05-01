@@ -10,22 +10,22 @@ This pipeline extracts verified facts from your design system's actual source co
 
 ## How It Works
 
-The pipeline has 5 stages. Each stage produces a persisted artifact on disk. Stages are session-isolated — any stage can start in a fresh agent session by reading state from disk.
+The pipeline has 6 stages. Each stage produces a persisted artifact on disk. Stages are session-isolated — any stage can start in a fresh agent session by reading state from disk.
 
 ```
-┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-│ Stage 1  │     │ Stage 2  │     │ Stage 3  │     │ Stage 4  │     │ Stage 5  │
-│Interview │────▶│ Extract  │────▶│   PRD    │────▶│ Generate │────▶│  Verify  │
-│          │     │          │     │          │     │          │     │          │
-│ Scope    │     │ Read     │     │ Plan     │     │ Write    │     │ Check    │
-│ decisions│     │ source   │     │ every    │     │ skill    │     │ output   │
-│ with user│     │ code     │     │ file     │     │ files    │     │ mechan-  │
-│          │     │          │     │          │     │          │     │ ically   │
-└──────────┘     └──────────┘     └──────────┘     └──────────┘     └──────────┘
-      │                │                │                │                │
-      ▼                ▼                ▼                ▼                ▼
- 01-decisions    02-verified-      03-closed-       skills/{ds}/    verification
-    .md          facts/              prd.md         (all files)       report
+┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
+│ Stage 1  │   │ Stage 2  │   │ Stage 3  │   │ Stage 4  │   │ Stage 5  │   │ Stage 6  │
+│Interview │──▶│ Extract  │──▶│   PRD    │──▶│ Generate │──▶│  Assets  │──▶│  Verify  │
+│          │   │          │   │          │   │          │   │          │   │          │
+│ Scope    │   │ Read     │   │ Plan     │   │ Write    │   │ Catalog  │   │ Check    │
+│ decisions│   │ source   │   │ every    │   │ skill    │   │ icons,   │   │ output   │
+│ with user│   │ code     │   │ file     │   │ files    │   │ logos    │   │ mechan-  │
+│          │   │          │   │          │   │          │   │ etc.     │   │ ically   │
+└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
+      │              │              │              │              │              │
+      ▼              ▼              ▼              ▼              ▼              ▼
+01-decisions   02-verified-   03-closed-     skills/{ds}/   assets/       verification
+   .md         facts/           prd/        (components)   catalogs        report
 ```
 
 | Stage | What it does | Output |
@@ -34,7 +34,8 @@ The pipeline has 5 stages. Each stage produces a persisted artifact on disk. Sta
 | 2. Extract | Reads source code and extracts verified facts per component | `02-verified-facts/` (per-component files) |
 | 3. PRD | Generates a closed spec for every file to create (zero open questions) | `03-closed-prd.md` |
 | 4. Generate | Produces skill files in parallel batches of 8, one batch per session | `skills/{ds}/` |
-| 5. Verify | Runs a shell script to catch import errors, missing files, structural issues | Verification report |
+| 5. Assets | Generates exhaustive asset catalogs (icons, logos, etc.) from source | `assets/{type}/{platform}/api.md` |
+| 6. Verify | Runs a shell script to catch import errors, missing files, structural issues | Verification report |
 
 ## Quickstart
 
@@ -73,7 +74,8 @@ Run each subsequent stage in order. The commands tell the agent exactly what to 
 Stage 2: Extract verified facts from source code
 Stage 3: Generate the closed PRD
 Stage 4: Generate skill files (one batch per session)
-Stage 5: Run verify-skills.sh (no agent session needed)
+Stage 5: Generate asset catalogs (icons, logos, etc.)
+Stage 6: Run verify-skills.sh (no agent session needed)
 ```
 
 Each stage reads its inputs from disk, so you can start a fresh agent session between stages.
@@ -82,23 +84,23 @@ Each stage reads its inputs from disk, so you can start a fresh agent session be
 
 Stage 4 generates components in batches of 8, with each batch requiring a fresh agent session to avoid context window accumulation. For design systems with many components, the manual cycle (clear session → re-run generate → wait → repeat) gets tedious.
 
-The `ds-generate-loop.sh` script automates this by spawning a fresh `claude -p` process per batch:
+The `generate-loop.sh` script automates this by spawning a fresh agent process per batch:
 
 ```bash
-./scripts/ds-generate-loop.sh --ds myds --max 25 --skip-permissions
+./scripts/generate-loop.sh --ds myds --max 25 --unattended
 ```
 
-Each iteration: spawn fresh Claude → Claude reads progress file → runs one batch → commits → exits → script validates progress → loops.
+Each iteration: spawn fresh agent → agent dispatches subagents → files get written → **script handles bookkeeping** (scans generated dirs, updates progress file, commits) → loops.
 
-The script requires two flags on the Claude invocation:
-- **DS name in the prompt** (`/ds:generate $DS_NAME`) — without it, Claude may auto-detect the wrong design system from `context/`
-- **`--max-turns 15`** — ensures Claude has enough turns to complete the full batch cycle (dispatch subagents → process results → update progress → commit). Without this, Claude exits mid-batch after dispatching subagents but before the post-batch bookkeeping.
+The script owns progress updates and commits via `update_progress_from_disk()`, which scans `skills/{ds}/references/{ds}/v{N}/components/` for newly created directories and checks them off in the progress file. This makes the loop resilient to the agent exiting before its own post-batch steps — a common occurrence when the agent runs out of turns after dispatching subagents.
 
 Options:
 - `--ds <name>` — design system name (auto-detected from `context/` if omitted)
 - `--max <N>` — safety limit on iterations (default: 20)
-- `--skip-permissions` — adds `--dangerously-skip-permissions` for fully unattended runs
-- `--dry-run` — shows what would run without executing
+- `--max-turns <N>` — agent `--max-turns` per iteration (default: 50, Claude-specific)
+- `--agent <cmd>` — agent CLI command (default: `claude -p`)
+- `--unattended` — run without permission prompts (maps to agent-specific flags)
+- `--dry-run` — shows what would run without executing; also runs `update_progress_from_disk()` to show what it would detect
 
 ## Output
 

@@ -14,6 +14,8 @@ Run Stage 4 of the design system skill generation pipeline: parallel skill file 
 
 Read the closed PRD, decisions, and verified facts from disk. Generate all skill files using parallel sub-agents in batches of 8. Each component batch runs in its own fresh session to avoid context accumulation — the progress file on disk provides continuity between sessions.
 
+The PRD may be either a single file (`03-closed-prd.md`) or a directory of 5 files (`03-closed-prd/`). Both formats are supported — detect which is present and load accordingly.
+
 ## Process
 
 ### Step 0: Session check
@@ -27,16 +29,34 @@ If yes, warn:
 >
 > Continue anyway? (The mandatory pauses and progress file will help manage context, but fresh is better.)
 
-### Step 1: Load all context from disk
+### Step 1: Load context from disk
 
 Identify the design system by scanning `context/` for available directories.
+
+#### PRD format detection
+
+Check which PRD format is present:
+- **Directory format** (`context/{ds}/03-closed-prd/` exists): Multi-file mode. Load files selectively based on the current phase (see table below).
+- **Single-file format** (`context/{ds}/03-closed-prd.md` exists): Legacy mode. Load the full file.
+
+**Selective PRD loading (directory format only):**
+
+| Phase | PRD files loaded |
+|---|---|
+| Wave 1 (infrastructure) | `01-file-manifest.md` + `02-content-structure.md` + `03-wave-plan.md` |
+| Wave 2 (guides) | `02-content-structure.md` + `03-wave-plan.md` |
+| Wave 3+ (component batches) | `05-subagent-template.md` + `03-wave-plan.md` |
+
+Component batches do NOT load the full manifest, content structure, or success criteria — only the subagent template and wave plan. This keeps context usage low for the heaviest phase.
+
+#### Common context (always loaded)
 
 Read from disk (NOT from conversation history):
 1. `context/{ds}/01-decisions.md` — scope, categories
 2. `context/{ds}/02-verified-facts/imports.md` — ALL validated import paths
 3. `context/{ds}/02-verified-facts/tokens.md` — token catalog
 4. `context/{ds}/02-verified-facts/compound-components.md` — compound structures
-5. `context/{ds}/03-closed-prd.md` — file manifest, wave plan, content structure, sub-agent template
+5. PRD files as determined by the phase (see table above)
 
 #### Resume check
 
@@ -49,20 +69,9 @@ If `context/{ds}/stage4-progress.md` exists, read it. This means a previous sess
 
 From the PRD, extract:
 - The wave plan (which files in which order)
-- The sub-agent prompt template
-- The content structure specifications
-- The success criteria
-
-#### Multi-run detection
-
-If the PRD contains run boundaries (e.g., "Run 1", "Run 2"), this design system is too large for a single Stage 4 session.
-
-Check the progress file to determine which run is active:
-- **No progress file:** This is a fresh start. Ask the user which run to execute (default: Run 1). Infrastructure and guides are only generated in Run 1.
-- **Progress file with Run 1 complete:** Execute Run 2.
-- **Progress file with Run N partially complete:** Resume Run N.
-
-Only load verified facts for components in the active run — this saves context budget.
+- The sub-agent prompt template (from `05-subagent-template.md` or PRD Section 5)
+- The content structure specifications (from `02-content-structure.md` or PRD Section 2)
+- The success criteria (from `04-success-criteria.md` or PRD Section 4)
 
 Ensure output directories exist:
 ```
@@ -83,13 +92,17 @@ skills/{ds}/
 │               │   └── examples/
 ```
 
-Initialize the progress file:
+#### Dynamic batching
+
+The wave plan orders components by category but does NOT pre-assign fixed batches. The generate command takes the next 8 unchecked items from the progress file in wave order. This is more resilient — failed components can be retried without stale batch assignments.
+
+Initialize the progress file with a flat ordered list (no run grouping):
 ```markdown
 # Stage 4 Progress — {DS Name}
 
 ## Status: In Progress
 ## Started: {timestamp}
-## Run: {current run number} of {total runs}
+## Total: {N} components
 
 ### Wave 1: Infrastructure
 - [ ] SKILL.md
@@ -102,11 +115,17 @@ Initialize the progress file:
 ### Wave 2: Guides
 {list all DS-specific guides with checkboxes}
 
-### Wave 3+: Components
-{list all batches with component names and checkboxes}
+### Wave 3: Components
+#### {Category 1 — e.g., Form}
+- [ ] {component1}
+- [ ] {component2}
+
+#### {Category 2 — e.g., Layout}
+- [ ] {component3}
+- [ ] {component4}
 
 ### Issues
-(none yet)
+(none)
 ```
 
 Write this to `context/{ds}/stage4-progress.md`.
@@ -164,7 +183,7 @@ After writing all guide files:
 
 ### Step 5: Execute Wave 3+ — Components
 
-Process components in batches of 8, following the PRD's batch assignments.
+Process components in batches of 8. Read the progress file and take the next 8 unchecked component items in wave order. Scope verified facts loading to only the current batch (8 components), not the full component list.
 
 #### For each batch:
 

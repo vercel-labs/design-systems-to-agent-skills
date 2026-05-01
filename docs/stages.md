@@ -28,7 +28,7 @@ It does NOT read individual component source files — that is Stage 2's job.
 ### Decision categories
 
 1. **Identity** — DS name, package, version, source path
-2. **Scope** — in-scope components, exclusions, run plan (if >50 components)
+2. **Scope** — in-scope components, exclusions
 3. **Categories** — component groupings (Form, Layout, Feedback, etc.)
 4. **Technical** — styling approach, consumer styling pattern, compound components, tokens, provider setup
 5. **Output structure** — which guides, component doc structure, anti-patterns
@@ -42,7 +42,7 @@ Stage 1 is lightweight. It can share a session with Stages 2-3 if the design sys
 
 - **Vague user answers:** The command instructs the agent to challenge vague responses. If the agent accepts "whatever" as a decision, re-run with the instruction to be more opinionated.
 - **Missing component inventory:** If the source has no inventory file, the agent scans component directories. Verify the scan is complete.
-- **Run plan disagreement:** The agent recommends splitting at 50+ components. The user can override, but should be aware of quality degradation in long runs.
+- **Large component count:** The pipeline handles any number of components — the loop script spawns a fresh session per batch, and multi-file PRDs keep context usage low.
 
 ---
 
@@ -91,7 +91,7 @@ Stage 2 can share a session with Stage 1 if the interview was short. For large d
 
 **Command:** `commands/3-prd.md`
 **Input:** `01-decisions.md` + `02-verified-facts/` (summary files only)
-**Output:** `context/{ds}/03-closed-prd.md`
+**Output:** `context/{ds}/03-closed-prd/` (directory of 5 files)
 **Context usage:** ~10% incremental
 
 ### What it does
@@ -110,20 +110,20 @@ It does NOT read individual component fact files — the summaries contain every
 
 ### What it writes
 
-- `context/{ds}/03-closed-prd.md` with 5 sections:
-  1. File manifest (every file path)
-  2. Content structure per file type
-  3. Wave plan (batch assignments)
-  4. Success criteria
-  5. Sub-agent prompt template
+- `context/{ds}/03-closed-prd/` directory with 5 files:
+  1. `01-file-manifest.md` — every file path to generate
+  2. `02-content-structure.md` — templates and section specs per file type
+  3. `03-wave-plan.md` — component ordering by category
+  4. `04-success-criteria.md` — quality checkpoints
+  5. `05-subagent-template.md` — prompt template for Stage 4 subagents
 
 ### When to start a fresh session
 
-For <50 components, the PRD fits in one session. For 50+ components, split: write Sections 1-3 in session A, commit, then Sections 4-5 in session B.
+Each file in the directory is a clean checkpoint. For small design systems, all 5 files fit in one session. For large systems, commit after each file and continue in a fresh session — resume detection checks which files exist.
 
 ### Common issues
 
-- **PRD too large for one session:** The command handles this with resume detection. If the PRD exists but lacks Section 5, the agent continues from where it left off.
+- **Resume detection:** If the directory exists but some files are missing, the command continues from where it left off.
 - **Open questions remain:** The command instructs the agent to resolve ALL ambiguities before finalizing. If any "[TBD]" appears, the agent must ask the user.
 - **Component count mismatch:** If the extracted component count doesn't match decisions, the agent reports the discrepancy.
 
@@ -146,9 +146,14 @@ Generates all skill files following the PRD's specifications. Executes in waves:
 - `context/{ds}/02-verified-facts/imports.md`
 - `context/{ds}/02-verified-facts/tokens.md`
 - `context/{ds}/02-verified-facts/compound-components.md`
-- `context/{ds}/03-closed-prd.md`
+- `context/{ds}/03-closed-prd/` — selective file loading by phase:
+  - Wave 1: `01-file-manifest.md` + `02-content-structure.md` + `03-wave-plan.md`
+  - Wave 2: `02-content-structure.md` + `03-wave-plan.md`
+  - Wave 3+: `05-subagent-template.md` + `03-wave-plan.md`
 - `context/{ds}/stage4-progress.md` (for resume)
-- `context/{ds}/02-verified-facts/components/{name}.md` (per batch, only active components)
+- `context/{ds}/02-verified-facts/components/{name}.md` (per batch, only current 8 components)
+
+(Legacy single-file `03-closed-prd.md` is also supported — the command auto-detects the format.)
 
 ### What it writes
 
@@ -175,11 +180,55 @@ Generates all skill files following the PRD's specifications. Executes in waves:
 
 ---
 
-## Stage 5: Programmatic Verification
+## Stage 5: Asset Catalog Generation
+
+**Command:** `commands/5-assets.md`
+**Input:** `01-decisions.md` + design system source + `02-verified-facts/` (if asset data exists)
+**Output:** `skills/{ds}/references/{ds}/v{N}/assets/`
+**Context usage:** Low (mechanical extraction + table generation)
+
+### What it does
+
+Produces exhaustive asset catalogs (icons, logos, illustrations, pixels) for every asset system identified in Stage 1. Asset catalogs are lookup tables — every name, every import path — that eliminate name hallucination by giving agents a complete enumeration to search.
+
+This stage combines extraction and generation because asset data is structured and needs no AI interpretation. A companion shell script (`scripts/extract-asset-names.sh`) handles the mechanical extraction from TypeScript name arrays; the agent handles source discovery, props extraction, and routing updates.
+
+### What it reads
+
+- `context/{ds}/01-decisions.md` — asset systems in scope, source paths
+- Design system source code — TypeScript name arrays, barrel files, or asset directories
+- `context/{ds}/02-verified-facts/` — any already-extracted asset data from Stage 2
+- `skills/{ds}/SKILL.md` — routing matrix to update
+- `skills/{ds}/references/{ds}/v{N}/index.md` — navigation to update
+
+### What it writes
+
+- `context/{ds}/02-verified-facts/assets/{type}.md` — verified name lists per asset type
+- `skills/{ds}/references/{ds}/v{N}/assets/{type}/{platform}/api.md` — catalog files
+- Updates to `SKILL.md` routing matrix and `index.md` navigation
+
+For multi-package systems (e.g., separate assets package):
+- `context/{ds}/02-verified-facts/{ds}-assets/{type}.md`
+- `skills/{ds}/references/{ds}-assets/v{N}/assets/{type}/{platform}/api.md`
+- `skills/{ds}/references/{ds}-assets/v{N}/index.md`
+
+### When to start a fresh session
+
+Stage 5 is lightweight. It can share a session with post-Stage-4 work or run standalone. No batch cycling is needed — asset catalogs are generated in a single pass.
+
+### Common issues
+
+- **Name array not found:** The source structure may not follow common conventions. Ask the user for the path to asset name lists.
+- **Count mismatch:** If the catalog has fewer rows than the source array, some names were filtered by the extraction script's regex. Re-run with adjusted patterns.
+- **Multi-package confusion:** If the design system has a separate assets package, ensure each package gets its own namespace under `references/`.
+
+---
+
+## Stage 6: Programmatic Verification
 
 **Script:** `scripts/verify-skills.sh`
 **Input:** `skills/{ds}/` + `context/{ds}/02-verified-facts/`
-**Output:** `context/{ds}/stage5-verification.md`
+**Output:** `context/{ds}/stage6-verification.md`
 **Context usage:** 0% (no agent session)
 
 ### What it does

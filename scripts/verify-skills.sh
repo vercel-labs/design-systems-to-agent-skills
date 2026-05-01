@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Stage 5: Programmatic verification of generated design system skills
+# Stage 6: Programmatic verification of generated design system skills
 # =============================================================================
 #
 # Usage: ./scripts/verify-skills.sh <ds-name> [--fix]
@@ -13,8 +13,9 @@
 # 2. Import paths — all match verified facts, no hallucinations
 # 3. Structural requirements — sections, directives, documentation
 # 4. Cross-reference — all components in index.md and SKILL.md routing matrix
+# 5. Asset catalogs — catalog files exist and have expected entry counts
 #
-# Output: context/<ds>/stage5-verification.md
+# Output: context/<ds>/stage6-verification.md
 # =============================================================================
 
 set -euo pipefail
@@ -24,7 +25,7 @@ FIX_MODE="${2:-}"
 SKILLS_DIR="skills/$DS_NAME"
 FACTS_DIR="context/$DS_NAME/02-verified-facts"
 DECISIONS="context/$DS_NAME/01-decisions.md"
-OUTPUT="context/$DS_NAME/stage5-verification.md"
+OUTPUT="context/$DS_NAME/stage6-verification.md"
 
 # Detect framework from decisions — 'use client' check only applies to Next.js/RSC
 NEEDS_USE_CLIENT=false
@@ -39,7 +40,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo "=========================================="
-echo " Stage 5: Verifying $DS_NAME skills"
+echo " Stage 6: Verifying $DS_NAME skills"
 echo "=========================================="
 echo ""
 
@@ -55,6 +56,8 @@ MISSING_ANTI_PATTERNS=0
 MISSING_STYLE_IMPORTS=0
 MISSING_USE_CLIENT=0
 MISSING_FROM_INDEX=0
+ASSET_CATALOG_MISSING=0
+ASSET_COUNT_MISMATCH=0
 ERRORS=()
 
 # ============================================================================
@@ -267,6 +270,113 @@ fi
 echo ""
 
 # ============================================================================
+# Check 5: Asset catalogs
+# ============================================================================
+echo "--- Check 5: Asset catalogs ---"
+
+# Check for verified asset facts
+ASSET_FACTS_DIR="$FACTS_DIR/assets"
+ASSET_TYPES_FOUND=0
+
+if [ -d "$ASSET_FACTS_DIR" ]; then
+  for asset_fact in "$ASSET_FACTS_DIR"/*.md; do
+    [ -f "$asset_fact" ] || continue
+    asset_type=$(basename "$asset_fact" .md)
+    ((ASSET_TYPES_FOUND++))
+
+    # Count entries in the verified facts file (table rows starting with |, excluding header)
+    fact_count=$(grep -c "^|[^-]" "$asset_fact" 2>/dev/null || echo "0")
+    # Subtract header row
+    if [ "$fact_count" -gt 0 ]; then
+      fact_count=$((fact_count - 1))
+    fi
+
+    # Look for corresponding catalog file in the skill output
+    catalog_found=false
+    for catalog in "$SKILLS_DIR"/references/*/v*/assets/"$asset_type"/*/api.md; do
+      if [ -f "$catalog" ]; then
+        catalog_found=true
+
+        # Count entries in the catalog (table rows starting with |, excluding header and separator)
+        catalog_count=$(grep -c "^|[^-]" "$catalog" 2>/dev/null || echo "0")
+        # Subtract header row
+        if [ "$catalog_count" -gt 0 ]; then
+          catalog_count=$((catalog_count - 1))
+        fi
+
+        if [ "$fact_count" -gt 0 ] && [ "$catalog_count" -ne "$fact_count" ]; then
+          echo -e "${RED}COUNT MISMATCH: $asset_type — facts: $fact_count, catalog: $catalog_count${NC}"
+          ((ASSET_COUNT_MISMATCH++))
+          ERRORS+=("Asset count mismatch: $asset_type (facts=$fact_count, catalog=$catalog_count)")
+        else
+          echo -e "${GREEN}$asset_type: $catalog_count entries — OK${NC}"
+        fi
+        break
+      fi
+    done
+
+    if [ "$catalog_found" = false ]; then
+      echo -e "${RED}MISSING CATALOG: $asset_type (facts exist at $asset_fact)${NC}"
+      ((ASSET_CATALOG_MISSING++))
+      ERRORS+=("Missing asset catalog: $asset_type")
+    fi
+  done
+fi
+
+# Also check for multi-package asset facts (e.g., {ds}-assets/)
+for multi_facts_dir in "$FACTS_DIR"/../*-assets; do
+  [ -d "$multi_facts_dir" ] || continue
+  pkg_name=$(basename "$multi_facts_dir")
+
+  for asset_fact in "$multi_facts_dir"/*.md; do
+    [ -f "$asset_fact" ] || continue
+    asset_type=$(basename "$asset_fact" .md)
+    ((ASSET_TYPES_FOUND++))
+
+    fact_count=$(grep -c "^|[^-]" "$asset_fact" 2>/dev/null || echo "0")
+    if [ "$fact_count" -gt 0 ]; then
+      fact_count=$((fact_count - 1))
+    fi
+
+    catalog_found=false
+    for catalog in "$SKILLS_DIR"/references/"$pkg_name"/v*/assets/"$asset_type"/*/api.md; do
+      if [ -f "$catalog" ]; then
+        catalog_found=true
+
+        catalog_count=$(grep -c "^|[^-]" "$catalog" 2>/dev/null || echo "0")
+        if [ "$catalog_count" -gt 0 ]; then
+          catalog_count=$((catalog_count - 1))
+        fi
+
+        if [ "$fact_count" -gt 0 ] && [ "$catalog_count" -ne "$fact_count" ]; then
+          echo -e "${RED}COUNT MISMATCH: $pkg_name/$asset_type — facts: $fact_count, catalog: $catalog_count${NC}"
+          ((ASSET_COUNT_MISMATCH++))
+          ERRORS+=("Asset count mismatch: $pkg_name/$asset_type (facts=$fact_count, catalog=$catalog_count)")
+        else
+          echo -e "${GREEN}$pkg_name/$asset_type: $catalog_count entries — OK${NC}"
+        fi
+        break
+      fi
+    done
+
+    if [ "$catalog_found" = false ]; then
+      echo -e "${RED}MISSING CATALOG: $pkg_name/$asset_type${NC}"
+      ((ASSET_CATALOG_MISSING++))
+      ERRORS+=("Missing asset catalog: $pkg_name/$asset_type")
+    fi
+  done
+done
+
+if [ "$ASSET_TYPES_FOUND" -eq 0 ]; then
+  echo -e "${YELLOW}No asset verified facts found — skipping asset catalog check${NC}"
+fi
+
+echo "Asset types found: $ASSET_TYPES_FOUND"
+echo "Missing catalogs: $ASSET_CATALOG_MISSING"
+echo "Count mismatches: $ASSET_COUNT_MISMATCH"
+echo ""
+
+# ============================================================================
 # Summary
 # ============================================================================
 TOTAL_ERRORS=${#ERRORS[@]}
@@ -279,6 +389,7 @@ echo "Files: $TOTAL_FILES / $((TOTAL_COMPONENTS * 2))"
 echo "Import errors: $IMPORT_ERRORS"
 echo "Structural issues: $((MISSING_IMPORT_SECTION + MISSING_NAMED_EXPORTS + MISSING_ANTI_PATTERNS + MISSING_USE_CLIENT))"
 echo "Cross-reference issues: $MISSING_FROM_INDEX"
+echo "Asset catalog issues: $((ASSET_CATALOG_MISSING + ASSET_COUNT_MISMATCH))"
 echo "Total issues: $TOTAL_ERRORS"
 echo ""
 
@@ -294,7 +405,7 @@ fi
 mkdir -p "$(dirname "$OUTPUT")"
 
 cat > "$OUTPUT" << EOF
-## Stage 5 Verification Results — $DS_NAME
+## Stage 6 Verification Results — $DS_NAME
 
 ### File completeness
 - Components in scope: $TOTAL_COMPONENTS
@@ -313,6 +424,11 @@ cat > "$OUTPUT" << EOF
 
 ### Cross-references
 - Components missing from index.md: $MISSING_FROM_INDEX
+
+### Asset catalogs
+- Asset types with verified facts: $ASSET_TYPES_FOUND
+- Missing catalog files: $ASSET_CATALOG_MISSING
+- Count mismatches (facts vs catalog): $ASSET_COUNT_MISMATCH
 
 ### Overall
 - **Total issues: $TOTAL_ERRORS**

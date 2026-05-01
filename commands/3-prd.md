@@ -32,27 +32,38 @@ If any input is missing, tell the user which previous stage needs to complete fi
 
 Verify: the number of extracted component files matches the in-scope component list from decisions. Report any discrepancies.
 
-### Large DS session management (50+ components)
+### Multi-file PRD structure
 
-For design systems with 50+ components, the PRD is large enough that generating it in one session risks exceeding context limits. Split into two sessions:
+The PRD is written as a directory of 5 files instead of a single monolithic file. This enables selective loading in Stage 4 — component batches only load the files they need, not the full spec.
 
-**Session A:** Write Sections 1-3 (file manifest, content structure, wave plan). After writing, commit the partial PRD:
-```bash
-git add context/{ds}/03-closed-prd.md
-git commit -m "{DS} Stage 3: partial PRD (sections 1-3)"
+Output directory: `context/{ds}/03-closed-prd/`
+
 ```
-Then tell the user:
-> Sections 1-3 written and committed. Start a fresh agent session and run Stage 3 again to continue with sections 4-5 and approval.
+context/{ds}/03-closed-prd/
+├── 01-file-manifest.md        # What files to generate, exact paths
+├── 02-content-structure.md    # Templates, section specs per file type
+├── 03-wave-plan.md            # Component ordering by category
+├── 04-success-criteria.md     # Quality checkpoints
+└── 05-subagent-template.md    # Prompt template for Stage 4 subagents
+```
 
-**Session B:** Read the partial PRD from disk, generate Sections 4-5 (success criteria, sub-agent template), resolve ambiguities, and get user approval.
+Each file is a clean checkpoint — write as many as fit in the session, commit, continue in a fresh session if needed. This replaces the old "Session A / Session B" split for large design systems.
 
-**Resume detection:** If `context/{ds}/03-closed-prd.md` exists but lacks Section 5 (sub-agent template), this is a resumed session. Read the partial PRD and continue from where it left off.
+### Session management
 
-For design systems with <50 components, write the full PRD in one session.
+**Resume detection:** Check which files exist in `context/{ds}/03-closed-prd/`. If the directory exists but some files are missing, this is a resumed session. Report which files are written and continue from where it left off.
+
+After writing each file (or group of files), commit immediately:
+```bash
+git add context/{ds}/03-closed-prd/
+git commit -m "{DS} Stage 3: PRD files {list of files written}"
+```
+
+For small design systems (<50 components), all 5 files likely fit in one session. For larger systems, commit after each file and continue in a fresh session if needed.
 
 ### Step 2: Generate the PRD
 
-Write `context/{ds}/03-closed-prd.md` with the following sections:
+Write the following files in `context/{ds}/03-closed-prd/`:
 
 #### Section 1: File manifest
 
@@ -143,11 +154,9 @@ Every example file must include:
 - Full imports in every example (component import + style import)
 - Every example is a complete functional component with `export default` — not a JSX snippet
 
-#### Section 3: Wave plan
+#### Section 3: Wave plan (`03-wave-plan.md`)
 
-Check `01-decisions.md` for a **Run Plan** section. If the design system was split into multiple runs, the wave plan must respect run boundaries.
-
-Assign files to ordered waves:
+Order components by category. The wave plan defines the generation order but does NOT pre-assign fixed batches of 8 — Stage 4 dynamically takes the next 8 unchecked items from the progress file.
 
 ```markdown
 ## Wave Plan
@@ -160,14 +169,18 @@ Assign files to ordered waves:
 ### Wave 2: Guides
 - {list all guide files}
 
-### Wave 3+: Components — Batch 1
-- {8 components, listed by name}
+### Wave 3: Components
+#### {Category 1 — e.g., Form}
+- {component names in recommended order}
 
-### Wave 4: Components — Batch 2
-- {next 8 components}
+#### {Category 2 — e.g., Layout}
+- {component names in recommended order}
+
+#### {Category 3 — e.g., Feedback}
+- {component names in recommended order}
 ```
 
-For multi-run design systems, include run boundaries. Each run boundary is a **session boundary**. Infrastructure (Wave 1) and guides (Wave 2) are generated once in Run 1 only.
+Group components by category for context coherence within batches. The generate command takes the next 8 unchecked items in wave order — failed components can be retried without stale batch assignments.
 
 #### Section 4: Success criteria
 
@@ -258,10 +271,10 @@ If ANY question lacks a clear answer — ask the user NOW. Do not write "[TBD]" 
 
 ### Step 4: Commit, then get user approval
 
-After writing the PRD, commit it immediately — before asking for approval:
+After writing all PRD files, commit immediately — before asking for approval:
 
 ```bash
-git add context/{ds}/03-closed-prd.md
+git add context/{ds}/03-closed-prd/
 git commit -m "{DS} Stage 3: closed PRD (N files, W waves, 0 open questions)"
 ```
 
@@ -295,6 +308,6 @@ Then:
 - **If facts are incomplete**, flag them and ask the user whether to proceed or re-run extraction.
 - **Do NOT read individual component fact files.** Use only the summary files (imports.md, tokens.md, compound-components.md).
 - **Commit before approval.** The PRD must be on disk before asking the user to review it.
-- **For 50+ components, split PRD generation across two sessions.**
+- **For large design systems, commit after each file and resume in a fresh session if needed.** Each file in the directory is a clean checkpoint.
 - **Do NOT generate any skill files.** This stage is planning only.
 - **Do NOT proceed to Stage 4.** The user must start a fresh session.

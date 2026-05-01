@@ -1,6 +1,6 @@
 # Pipeline Commands — Installation Guide
 
-The 4 `.md` files in this directory are agent prompts. Each file contains the full instructions for one pipeline stage. Your agent reads the file and follows the instructions.
+The 5 `.md` files in this directory are agent prompts. Each file contains the full instructions for one pipeline stage. Your agent reads the file and follows the instructions. (Stage 6: Verify is a shell script, not an agent command — see `scripts/verify-skills.sh`.)
 
 ## Files
 
@@ -10,6 +10,7 @@ The 4 `.md` files in this directory are agent prompts. Each file contains the fu
 | `2-extract.md` | Stage 2 | Extracts verified facts from source code |
 | `3-prd.md` | Stage 3 | Generates a closed PRD with zero open questions |
 | `4-generate.md` | Stage 4 | Generates skill files in parallel batches |
+| `5-assets.md` | Stage 5 | Generates exhaustive asset catalogs (icons, logos, etc.) |
 
 ## Installation by Runtime
 
@@ -26,6 +27,7 @@ mv .claude/commands/ds/1-interview.md .claude/commands/ds/interview.md
 mv .claude/commands/ds/2-extract.md .claude/commands/ds/extract.md
 mv .claude/commands/ds/3-prd.md .claude/commands/ds/prd.md
 mv .claude/commands/ds/4-generate.md .claude/commands/ds/generate.md
+mv .claude/commands/ds/5-assets.md .claude/commands/ds/assets.md
 ```
 
 Then invoke as slash commands:
@@ -34,6 +36,7 @@ Then invoke as slash commands:
 /ds:extract
 /ds:prd
 /ds:generate
+/ds:assets
 ```
 
 ### Codex CLI
@@ -52,6 +55,9 @@ codex --prompt "$(cat commands/3-prd.md)"
 
 # Stage 4 — run once per batch, fresh process each time
 codex --prompt "$(cat commands/4-generate.md)"
+
+# Stage 5 — asset catalogs
+codex --prompt "$(cat commands/5-assets.md)"
 ```
 
 ### OpenCode

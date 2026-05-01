@@ -152,17 +152,92 @@ Every example file contains complete, copy-paste-ready functional components —
 
 ## Asset Catalogs
 
-If the design system includes icons, illustrations, or other assets, they get dedicated catalogs:
+If the design system includes icons, illustrations, or other assets, they get dedicated catalogs under `assets/`:
 
 ```
 {ds}/v{N}/assets/
 ├── icons/{platform}/
 │   └── api.md              # Exhaustive icon name list + import patterns
+├── logos/{platform}/
+│   └── api.md              # Logo catalog with variants
+├── pixels/{platform}/
+│   └── api.md              # Pixel art catalog
 └── illustrations/{platform}/
     └── api.md              # Illustration catalog
 ```
 
-Asset catalogs are exhaustive lookup tables — every asset name, import path, available sizes/variants, and accessibility notes. The icon catalog is the primary defense against icon name hallucination.
+Asset catalogs are exhaustive lookup tables — every asset name, import path, and variant — that eliminate name hallucination by giving agents a complete enumeration to search.
+
+### Multi-package assets
+
+When a design system ships assets in a separate package (e.g., `@vercel/geistcn` components + `@vercel/geistcn-assets` icons/logos), each package gets its own namespace:
+
+```
+references/
+├── {ds}/v{N}/                     # Main component package
+│   └── assets/                    # Assets from main package (if any)
+├── {ds}-assets/v{N}/              # Standalone assets package
+│   ├── index.md                   # Package overview + routing
+│   └── assets/
+│       ├── icons/{platform}/api.md
+│       ├── logos/{platform}/api.md
+│       └── pixels/{platform}/api.md
+```
+
+### Asset catalog format (api.md)
+
+Each asset catalog follows this structure:
+
+```markdown
+# {Type} Catalog — {DS Name}
+
+{count} {type}s. Import pattern: `import { ComponentName } from '{package}/{type}/component-name'`
+
+> Load this file whenever you need a {type} from {DS Name}.
+> Do NOT guess {type} names — pick from the table below.
+
+## Import
+
+\```tsx
+// Direct import (preferred)
+import { ArrowUp } from '{package}/icons/arrow-up'
+
+// Barrel import (if supported)
+import { ArrowUp } from '{package}/icons'
+\```
+
+## Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| size | number | 24 | Width and height in pixels |
+| color | string | 'currentColor' | Icon color |
+| className | string | — | Additional CSS classes |
+
+## All {Type}s ({count})
+
+| Name | Component | Import Path |
+|---|---|---|
+| arrow-up | ArrowUp | `{package}/icons/arrow-up` |
+| check-circle | CheckCircle | `{package}/icons/check-circle` |
+...
+
+## Anti-patterns
+
+- DON'T guess icon names — use this catalog
+- DON'T import from barrel if DS recommends direct imports
+- DON'T hardcode SVG — use the component import
+```
+
+For asset types with variants (logos with light/dark/mono), add a Variants column:
+
+```markdown
+| Name | Component | Variants | Import Path |
+|---|---|---|---|
+| vercel | VercelLogo | light, dark, mono | `{package}/logos/vercel` |
+```
+
+Props are extracted from one actual asset component file in the source — not generated from memory. The shared props interface (size, color, className) applies to all assets of that type.
 
 ## SKILL.md Routing Matrix
 
