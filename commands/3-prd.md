@@ -27,6 +27,7 @@ Read **summary files only** — do NOT read individual component fact files. The
 - `context/{ds}/02-verified-facts/compound-components.md` — compound structures
 - `context/{ds}/02-verified-facts/tokens.md` — token catalog
 - Scan `context/{ds}/02-verified-facts/components/` — **count** extracted components (list filenames, don't read contents)
+- **If `context/{ds}/02b-usage-patterns/` exists:** read `context/{ds}/02b-usage-patterns/summary.md` — usage-level behavioral patterns from a consuming codebase. This is optional — the directory only exists if Stage 2b was run.
 
 If any input is missing, tell the user which previous stage needs to complete first.
 
@@ -195,6 +196,7 @@ Group components by category for context coherence within batches. The generate 
 - [ ] No props added that aren't in verified facts
 - [ ] Named exports table present with all exports
 - [ ] Anti-patterns section with WRONG/CORRECT code blocks
+- [ ] Usage patterns reflected in anti-patterns (if Stage 2b was run)
 
 ### examples/ directory
 - [ ] 'use client' directive in every code block (if applicable)
@@ -256,6 +258,20 @@ For multi-variant components, repeat per variant:
 
 ---
 ```
+
+If `context/{ds}/02b-usage-patterns/components/{name}.md` exists and contains notable patterns (not just "No significant usage patterns detected."), include them in the sub-agent prompt:
+
+```
+"The following usage patterns were observed in a consuming codebase. Use them to:
+- Turn wrapper component gaps into anti-patterns
+- Mention overridden defaults in Props description column
+- Turn workaround insights into anti-patterns or behavioral notes
+
+Usage Patterns:
+{CONTENTS_OF_USAGE_PATTERNS_FILE}"
+```
+
+Backward-compatible: components without a usage patterns file continue unchanged.
 
 ### Step 3: Resolve all ambiguities
 

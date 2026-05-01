@@ -10,28 +10,29 @@ This pipeline extracts verified facts from your design system's actual source co
 
 ## How It Works
 
-The pipeline has 6 stages. Each stage produces a persisted artifact on disk. Stages are session-isolated — any stage can start in a fresh agent session by reading state from disk.
+The pipeline has 6 stages (plus one optional stage). Each stage produces a persisted artifact on disk. Stages are session-isolated — any stage can start in a fresh agent session by reading state from disk.
 
 ```
-┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
-│ Stage 1  │   │ Stage 2  │   │ Stage 3  │   │ Stage 4  │   │ Stage 5  │   │ Stage 6  │
-│Interview │──▶│ Extract  │──▶│   PRD    │──▶│ Generate │──▶│  Assets  │──▶│  Verify  │
-│          │   │          │   │          │   │          │   │          │   │          │
-│ Scope    │   │ Read     │   │ Plan     │   │ Write    │   │ Catalog  │   │ Check    │
-│ decisions│   │ source   │   │ every    │   │ skill    │   │ icons,   │   │ output   │
-│ with user│   │ code     │   │ file     │   │ files    │   │ logos    │   │ mechan-  │
-│          │   │          │   │          │   │          │   │ etc.     │   │ ically   │
-└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
-      │              │              │              │              │              │
-      ▼              ▼              ▼              ▼              ▼              ▼
-01-decisions   02-verified-   03-closed-     skills/{ds}/   assets/       verification
-   .md         facts/           prd/        (components)   catalogs        report
+┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
+│ Stage 1  │   │ Stage 2  │   │Stage 2b  │   │ Stage 3  │   │ Stage 4  │   │ Stage 5  │   │ Stage 6  │
+│Interview │──▶│ Extract  │──▶│  Usage   │──▶│   PRD    │──▶│ Generate │──▶│  Assets  │──▶│  Verify  │
+│          │   │          │   │ Analysis │   │          │   │          │   │          │   │          │
+│ Scope    │   │ Read     │   │  (opt)   │   │ Plan     │   │ Write    │   │ Catalog  │   │ Check    │
+│ decisions│   │ source   │   │ Analyze  │   │ every    │   │ skill    │   │ icons,   │   │ output   │
+│ with user│   │ code     │   │ consuming│   │ file     │   │ files    │   │ logos    │   │ mechan-  │
+│          │   │          │   │ codebase │   │          │   │          │   │ etc.     │   │ ically   │
+└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
+      │              │              │              │              │              │              │
+      ▼              ▼              ▼              ▼              ▼              ▼              ▼
+01-decisions   02-verified-  02b-usage-    03-closed-     skills/{ds}/   assets/       verification
+   .md         facts/        patterns/       prd/        (components)   catalogs        report
 ```
 
 | Stage | What it does | Output |
 |---|---|---|
 | 1. Interview | Asks the user scoping questions about the design system | `01-decisions.md` |
 | 2. Extract | Reads source code and extracts verified facts per component | `02-verified-facts/` (per-component files) |
+| 2b. Usage Analysis | (Optional) Analyzes DS usage in a consuming codebase | `02b-usage-patterns/` |
 | 3. PRD | Generates a closed spec for every file to create (zero open questions) | `03-closed-prd.md` |
 | 4. Generate | Produces skill files in parallel batches of 8, one batch per session | `skills/{ds}/` |
 | 5. Assets | Generates exhaustive asset catalogs (icons, logos, etc.) from source | `assets/{type}/{platform}/api.md` |
@@ -71,12 +72,15 @@ The agent will ask you scoping questions one at a time. Decisions are written to
 Run each subsequent stage in order. The commands tell the agent exactly what to do:
 
 ```
-Stage 2: Extract verified facts from source code
-Stage 3: Generate the closed PRD
-Stage 4: Generate skill files (one batch per session)
-Stage 5: Generate asset catalogs (icons, logos, etc.)
-Stage 6: Run verify-skills.sh (no agent session needed)
+Stage 2:  Extract verified facts from source code
+Stage 2b: (Optional) Analyze usage patterns in a consuming codebase
+Stage 3:  Generate the closed PRD
+Stage 4:  Generate skill files (one batch per session)
+Stage 5:  Generate asset catalogs (icons, logos, etc.)
+Stage 6:  Run verify-skills.sh (no agent session needed)
 ```
+
+**Optional: Stage 2b** — If you have a codebase that consumes the design system, run Stage 2b after Stage 2 to capture usage patterns (wrapper components, overridden defaults, workaround comments). These patterns enrich the generated skill files with real-world usage insights. Pass the consuming repo path as the argument.
 
 Each stage reads its inputs from disk, so you can start a fresh agent session between stages.
 

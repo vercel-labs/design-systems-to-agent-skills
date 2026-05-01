@@ -74,9 +74,12 @@ Pattern:
 |---|---|---|
 | Stage 1 (Interview) | ~15% | High-level file reads, interview conversation |
 | Stage 2 (Extract) | ~25% | Batch dispatching, file existence polling, committing |
+| Stage 2b (Usage Analysis) | ~20% | Consuming repo search, pattern extraction |
 | Stage 3 (PRD) | ~10% | Summary file reads, PRD writing |
 | Stage 4 (Generate) | ~12% per batch | PRD loading, verified facts per batch, sub-agent dispatching |
 | Stage 5 (Assets) | ~5% | Script-assisted extraction, table formatting |
 | Stage 6 (Verify) | 0% | Shell script, no agent |
 
 These are approximate. Actual usage depends on design system size, component complexity, and agent runtime.
+
+**Session note for Stage 2b:** If running Stages 1+2+2b+3 sequentially, total context reaches ~70%. Consider starting a fresh session before Stage 2b or Stage 3 to keep each stage within comfortable limits.

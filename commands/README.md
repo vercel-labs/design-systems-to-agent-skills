@@ -1,6 +1,6 @@
 # Pipeline Commands — Installation Guide
 
-The 6 `.md` files in this directory are agent prompts (5 stages + 1 utility). Each file contains the full instructions for one pipeline stage or utility. Your agent reads the file and follows the instructions. (Stage 6: Verify is a shell script, not an agent command — see `scripts/verify-skills.sh`.)
+The 7 `.md` files in this directory are agent prompts (5 stages + 1 optional stage + 1 utility). Each file contains the full instructions for one pipeline stage or utility. Your agent reads the file and follows the instructions. (Stage 6: Verify is a shell script, not an agent command — see `scripts/verify-skills.sh`.)
 
 ## Files
 
@@ -8,6 +8,7 @@ The 6 `.md` files in this directory are agent prompts (5 stages + 1 utility). Ea
 |---|---|---|
 | `1-interview.md` | Stage 1 | Interviews the user about design system scope |
 | `2-extract.md` | Stage 2 | Extracts verified facts from source code |
+| `2b-usage-analysis.md` | Stage 2b (optional) | Analyzes DS usage patterns in a consuming codebase |
 | `3-prd.md` | Stage 3 | Generates a closed PRD with zero open questions |
 | `4-generate.md` | Stage 4 | Generates skill files in parallel batches |
 | `5-assets.md` | Stage 5 | Generates exhaustive asset catalogs (icons, logos, etc.) |
@@ -31,6 +32,7 @@ cp commands/*.md .claude/commands/ds/
 # Rename to match slash-command convention
 mv .claude/commands/ds/1-interview.md .claude/commands/ds/interview.md
 mv .claude/commands/ds/2-extract.md .claude/commands/ds/extract.md
+mv .claude/commands/ds/2b-usage-analysis.md .claude/commands/ds/usage-analysis.md
 mv .claude/commands/ds/3-prd.md .claude/commands/ds/prd.md
 mv .claude/commands/ds/4-generate.md .claude/commands/ds/generate.md
 mv .claude/commands/ds/5-assets.md .claude/commands/ds/assets.md
@@ -41,6 +43,7 @@ Then invoke as slash commands:
 ```
 /ds:interview /path/to/design-system
 /ds:extract
+/ds:usage-analysis /path/to/consuming-repo  # optional
 /ds:prd
 /ds:generate
 /ds:assets
@@ -57,6 +60,9 @@ codex --prompt "$(cat commands/1-interview.md)" "Source: /path/to/design-system"
 
 # Stage 2 — can run with less interaction
 codex --prompt "$(cat commands/2-extract.md)"
+
+# Stage 2b (optional) — analyze usage in a consuming repo
+codex --prompt "$(cat commands/2b-usage-analysis.md)" "/path/to/consuming-repo"
 
 # Stage 3
 codex --prompt "$(cat commands/3-prd.md)"

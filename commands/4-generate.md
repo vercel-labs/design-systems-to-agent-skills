@@ -57,6 +57,7 @@ Read from disk (NOT from conversation history):
 3. `context/{ds}/02-verified-facts/tokens.md` — token catalog
 4. `context/{ds}/02-verified-facts/compound-components.md` — compound structures
 5. PRD files as determined by the phase (see table above)
+6. **If `context/{ds}/02b-usage-patterns/` exists:** Note its presence. Per-component usage patterns will be loaded per-batch in Step 5.
 
 #### Resume check
 
@@ -218,6 +219,19 @@ Behavioral Notes:
 {CONTENTS_OF_BEHAVIORAL_NOTES_SECTION}"
 
 This is backward-compatible: components without a `## Behavioral Notes` section continue to work unchanged.
+
+If `context/{ds}/02b-usage-patterns/components/{name}.md` exists and contains notable patterns (not just "No significant usage patterns detected." or "Component not used in consuming codebase."), include those patterns in the sub-agent prompt:
+
+"The following usage patterns were observed in a consuming codebase. Incorporate them:
+- Wrapper component gaps → WRONG/CORRECT anti-pattern pairs
+- Overridden defaults → note in Props table Description column
+- Workaround insights → anti-patterns or Behavioral Notes section
+- Transform utility insights → document expected input format in Props descriptions
+
+Usage Patterns:
+{CONTENTS_OF_USAGE_PATTERNS_FILE}"
+
+Backward-compatible: components without a usage patterns file continue unchanged.
 
 Each sub-agent writes directly to the versioned path.
 

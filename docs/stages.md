@@ -87,6 +87,44 @@ Stage 2 can share a session with Stage 1 if the interview was short. For large d
 
 ---
 
+## Stage 2b: Usage Analysis (Optional)
+
+**Command:** `commands/2b-usage-analysis.md`
+**Input:** `01-decisions.md` + `02-verified-facts/` + consuming repo path
+**Output:** `context/{ds}/02b-usage-patterns/`
+**Context usage:** ~20%
+
+### What it does
+
+Analyzes how developers actually use DS components in a consuming codebase. Detects four signal types that only appear in usage: wrapper components, overridden defaults, workaround comments, and transform utilities. Dispatches sub-agents in batches of 8 to search the consuming codebase.
+
+### What it reads
+
+- `context/{ds}/01-decisions.md` — package name, source path, in-scope components
+- `context/{ds}/02-verified-facts/components/` — import paths from each component's `## Import` section
+- Consuming codebase source files (provided as argument)
+
+### What it writes
+
+- `context/{ds}/02b-usage-patterns/components/{name}.md` — one file per in-scope component
+- `context/{ds}/02b-usage-patterns/summary.md` — cross-component summary (Stage 3 reads this)
+
+### Same-repo support
+
+If the consuming repo is the same repo as the DS source, the command excludes the DS library directory, `node_modules/`, and build output directories (`dist/`, `build/`, `.next/`, `out/`) from the search. This prevents re-analyzing the DS source that Stage 2 already handled.
+
+### When to start a fresh session
+
+Stage 2b is medium-weight (~20% context). If Stage 2 was large, start a fresh session. If Stage 2 was small (<30 components), it can share a session with Stage 2.
+
+### Common issues
+
+- **Zero DS imports found:** The consuming repo doesn't use the design system. Stage 2b reports this and stops.
+- **High false positive rate:** Ensure test files and storybook stories are excluded. The sub-agent prompt explicitly filters these, but verify if results look noisy.
+- **Same-repo misconfiguration:** If patterns from the DS library itself appear in the output, check that the exclusion paths are correct relative to the repo root.
+
+---
+
 ## Stage 3: Closed PRD
 
 **Command:** `commands/3-prd.md`
@@ -105,6 +143,7 @@ Synthesizes decisions and verified facts into a PRD that specifies every file to
 - `context/{ds}/02-verified-facts/tokens.md`
 - `context/{ds}/02-verified-facts/compound-components.md`
 - File list from `context/{ds}/02-verified-facts/components/` (count only, not contents)
+- `context/{ds}/02b-usage-patterns/summary.md` (optional — only if Stage 2b was run)
 
 It does NOT read individual component fact files — the summaries contain everything needed.
 
@@ -152,6 +191,7 @@ Generates all skill files following the PRD's specifications. Executes in waves:
   - Wave 3+: `05-subagent-template.md` + `03-wave-plan.md`
 - `context/{ds}/stage4-progress.md` (for resume)
 - `context/{ds}/02-verified-facts/components/{name}.md` (per batch, only current 8 components)
+- `context/{ds}/02b-usage-patterns/components/{name}.md` (optional — per batch, only if Stage 2b was run)
 
 (Legacy single-file `03-closed-prd.md` is also supported — the command auto-detects the format.)
 

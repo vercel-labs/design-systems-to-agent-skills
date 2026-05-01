@@ -41,25 +41,29 @@ The PRD is a directory of 5 files (`context/{ds}/03-closed-prd/`) rather than a 
 
 Stage 4 handles any number of components without run splitting. The loop script (`generate-loop.sh`) spawns a fresh session per batch, and each session loads only the PRD files and verified facts needed for its 8 components.
 
+### 8. Optional stages degrade gracefully
+
+Stage 2b (Usage Analysis) is optional — it only runs when a consuming repo is provided. Downstream stages check for the `02b-usage-patterns/` directory's existence. If present, they incorporate usage patterns. If absent, they continue unchanged. No flags, no configuration, no conditional logic — just directory existence checks.
+
 ## Pipeline Overview
 
 ```
-Stage 1         Stage 2         Stage 3         Stage 4         Stage 5       Stage 6
-Interview       Extract         PRD             Generate        Assets        Verify
-   │               │               │               │               │            │
-   ▼               ▼               ▼               ▼               ▼            ▼
-┌─────────┐  ┌─────────┐  ┌─────────┐  ┌────────────┐  ┌─────────┐  ┌─────────┐
-│ Scope   │  │ Read    │  │ Plan   │  │Write skill │  │ Catalog │  │ Check  │
-│ decis-  │─▶│ source  │─▶│ every  │─▶│ files in   │─▶│ icons,  │─▶│ output │
-│ ions    │  │ code    │  │ file   │  │ batches    │  │ logos   │  │ mech-  │
-│         │  │         │  │        │  │ of 8       │  │ etc.    │  │ anical │
-└─────────┘  └─────────┘  └─────────┘  └────────────┘  └─────────┘  └─────────┘
-      │            │            │              │              │            │
-      ▼            ▼            ▼              ▼              ▼            ▼
-01-decisions 02-verified- 03-closed-     skills/{ds}/    assets/     verification
-   .md       facts/         prd/        + progress file  catalogs      report
+Stage 1         Stage 2        Stage 2b        Stage 3         Stage 4         Stage 5       Stage 6
+Interview       Extract        Usage (opt)     PRD             Generate        Assets        Verify
+   │               │               │               │               │               │            │
+   ▼               ▼               ▼               ▼               ▼               ▼            ▼
+┌─────────┐  ┌─────────┐  ┌───────────┐  ┌─────────┐  ┌────────────┐  ┌─────────┐  ┌─────────┐
+│ Scope   │  │ Read    │  │ Analyze   │  │ Plan    │  │Write skill │  │ Catalog │  │ Check   │
+│ decis-  │─▶│ source  │─▶│ consuming │─▶│ every   │─▶│ files in   │─▶│ icons,  │─▶│ output  │
+│ ions    │  │ code    │  │ codebase  │  │ file    │  │ batches    │  │ logos   │  │ mech-   │
+│         │  │         │  │ (optional)│  │         │  │ of 8       │  │ etc.    │  │ anical  │
+└─────────┘  └─────────┘  └───────────┘  └─────────┘  └────────────┘  └─────────┘  └─────────┘
+      │            │              │            │              │              │            │
+      ▼            ▼              ▼            ▼              ▼              ▼            ▼
+01-decisions 02-verified-  02b-usage-   03-closed-     skills/{ds}/    assets/     verification
+   .md       facts/        patterns/      prd/        + progress file  catalogs      report
 
-◄──── Can share one session ────►  ◄─ Fresh per batch ─►  ◄─── No session ──►
+◄────── Can share one session ──────►  ◄─ Fresh per batch ─►  ◄─── No session ──►
 ```
 
 ## Context Budget
@@ -68,12 +72,13 @@ Interview       Extract         PRD             Generate        Assets        Ve
 |---|---|---|
 | 1: Interview | ~15% | Can share with Stages 2-3 |
 | 2: Extraction | ~25% | Can share with Stages 1, 3 |
+| 2b: Usage Analysis | ~20% | Can share with Stage 2 or run standalone |
 | 3: PRD | ~10% incremental | Can share with Stages 1-2 |
 | 4: Generation | ~12% per batch | **Fresh session per batch** |
 | 5: Assets | ~5% (mechanical) | Can share or run standalone |
 | 6: Verification | 0% (shell script) | No agent session needed |
 
-Stages 1-3 fit in one session (~50% total). Stage 4 gets a fresh session with full context budget. Stage 5 is lightweight — script-assisted extraction with minimal AI interpretation. Stage 6 runs outside any agent session.
+Stages 1-3 fit in one session (~50% total). Stage 2b is optional — if running 1+2+2b+3 sequentially, total reaches ~70%, so consider a fresh session for 2b or 3. Stage 4 gets a fresh session with full context budget. Stage 5 is lightweight — script-assisted extraction with minimal AI interpretation. Stage 6 runs outside any agent session.
 
 ## Comparison
 
